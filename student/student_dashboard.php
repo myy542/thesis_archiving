@@ -9,7 +9,6 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
-// CRITICAL FIX: Get user role from database and redirect if not student
 $user_id = (int)$_SESSION["user_id"];
 $roleQuery = "SELECT role_id FROM user_table WHERE user_id = ? LIMIT 1";
 $stmt = $conn->prepare($roleQuery);
@@ -18,28 +17,20 @@ $stmt->execute();
 $userData = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-// If user not found in database, destroy session
 if (!$userData) {
     session_destroy();
     header("Location: /ArchivingThesis/authentication/login.php");
     exit;
 }
 
-// STRICT CHECK: Only allow role_id = 2 (student)
 if ($userData['role_id'] != 2) {
-    // Redirect to appropriate dashboard based on role
     if ($userData['role_id'] == 3) {
         header("Location: /ArchivingThesis/faculty/facultyDashboard.php");
     } else {
-        // Unknown role, redirect to login
         header("Location: /ArchivingThesis/authentication/login.php");
     }
     exit;
 }
-
-/* ================================
-   FETCH USER INFORMATION
-================================ */
 $user_columns = $conn->query("SHOW COLUMNS FROM user_table");
 $user_id_column = 'user_id';
 while ($column = $user_columns->fetch_assoc()) {
@@ -67,10 +58,7 @@ $last  = trim($user["last_name"] ?? "");
 $displayName = trim($first . " " . $last);
 $initials = $first && $last ? strtoupper(substr($first, 0, 1) . substr($last, 0, 1)) : "U";
 
-/* ================================
-   GET STUDENT ID FROM STUDENT TABLE
-================================ */
-$student_id = $user_id; // Default fallback
+$student_id = $user_id; 
 $studentQuery = "SELECT student_id FROM student_table WHERE user_id = ? LIMIT 1";
 $stmt = $conn->prepare($studentQuery);
 $stmt->bind_param("i", $user_id);
@@ -82,12 +70,6 @@ $stmt->close();
 if ($studentData) {
     $student_id = $studentData['student_id'];
 }
-
-/* ================================
-   DASHBOARD STATISTICS
-================================ */
-
-// 1. PENDING THESES COUNT
 $pendingCount = 0;
 try {
     $pendingQuery = "SELECT COUNT(*) as total FROM thesis_table 
@@ -103,7 +85,6 @@ try {
     $pendingCount = 0;
 }
 
-// 2. APPROVED THESES COUNT
 $approvedCount = 0;
 try {
     $approvedQuery = "SELECT COUNT(*) as total FROM thesis_table 
@@ -119,7 +100,6 @@ try {
     $approvedCount = 0;
 }
 
-// 3. REJECTED THESES COUNT
 $rejectedCount = 0;
 try {
     $rejectedQuery = "SELECT COUNT(*) as total FROM thesis_table 
@@ -135,7 +115,6 @@ try {
     $rejectedCount = 0;
 }
 
-// 4. ARCHIVED THESES COUNT
 $archivedCount = 0;
 try {
     $archivedQuery = "SELECT COUNT(*) as total FROM thesis_table 
@@ -151,7 +130,6 @@ try {
     $archivedCount = 0;
 }
 
-// 5. TOTAL SUBMISSIONS COUNT
 $totalCount = 0;
 try {
     $totalQuery = "SELECT COUNT(*) as total FROM thesis_table 
@@ -167,14 +145,10 @@ try {
     $totalCount = 0;
 }
 
-/* ================================
-   NOTIFICATIONS - ENHANCED VERSION
-================================ */
 $unreadCount = 0;
 $recentNotifications = [];
 
 try {
-    // Get unread count
     $countQuery = "SELECT COUNT(*) as total FROM notification_table 
                    WHERE user_id = ? AND status = 'unread'";
     $stmt = $conn->prepare($countQuery);
@@ -184,7 +158,6 @@ try {
     $unreadCount = $countResult['total'] ?? 0;
     $stmt->close();
     
-    // Get recent notifications with thesis details
     $notifQuery = "SELECT 
                     n.notification_id as id, 
                     n.message, 
@@ -220,12 +193,8 @@ try {
     $recentNotifications = [];
 }
 
-/* ================================
-   GET RECENT FEEDBACK - EACH FEEDBACK IS INDIVIDUAL
-================================ */
 $recentFeedback = [];
 try {
-    // Get each feedback individually with faculty info
     $feedbackQuery = "SELECT f.*, t.title as thesis_title, 
                              u.first_name as faculty_first, u.last_name as faculty_last
                       FROM feedback_table f
@@ -245,7 +214,6 @@ try {
     error_log("Feedback fetch error: " . $e->getMessage());
 }
 
-// Count feedback notifications specifically
 $feedbackNotificationCount = 0;
 foreach ($recentNotifications as $notif) {
     if (strpos($notif['message'], 'feedback') !== false) {
@@ -264,7 +232,6 @@ $pageTitle = "Student Dashboard";
   <title><?= htmlspecialchars($pageTitle) ?> - Theses Archiving System</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* Base styles - keep all your existing CSS */
     * {
       margin: 0;
       padding: 0;
@@ -274,6 +241,7 @@ $pageTitle = "Student Dashboard";
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
       background: #f5f5f5;
+      color: #000000; 
     }
 
     body.dark-mode {
@@ -285,15 +253,13 @@ $pageTitle = "Student Dashboard";
       min-height: 100vh;
       position: relative;
     }
-
-    /* Main Content */
+ 
     .main-content {
       padding: 2rem;
       max-width: 1400px;
       margin: 0 auto;
     }
 
-    /* Topbar */
     .topbar {
       display: flex;
       justify-content: space-between;
@@ -303,20 +269,22 @@ $pageTitle = "Student Dashboard";
       background: white;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(110, 110, 110, 0.1);
+      color: #000000;  
     }
 
     body.dark-mode .topbar {
       background: #3a3a3a;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      color: #e0e0e0;
     }
 
     .topbar h1 {
       font-size: 1.875rem;
-      color: #732529;
+      color: #000000;
     }
 
     body.dark-mode .topbar h1 {
-      color: #FE4853;
+      color: #000000;
     }
 
     .user-info {
@@ -324,10 +292,7 @@ $pageTitle = "Student Dashboard";
       align-items: center;
       gap: 1.5rem;
     }
-
-    /* ====================================
-       NOTIFICATION DROPDOWN STYLES
-    ==================================== */
+ 
     .notification-container {
       position: relative;
       display: inline-block;
@@ -343,7 +308,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .notification-bell:hover {
-      color: #FE4853;
+      color: #000000;
     }
 
     body.dark-mode .notification-bell {
@@ -351,14 +316,14 @@ $pageTitle = "Student Dashboard";
     }
 
     body.dark-mode .notification-bell:hover {
-      color: #FE4853;
+      color: #000000;
     }
 
     .notification-badge {
       position: absolute;
       top: -8px;
       right: -8px;
-      background: #FE4853;
+      background: #000000;
       color: white;
       font-size: 0.7rem;
       font-weight: bold;
@@ -383,11 +348,13 @@ $pageTitle = "Student Dashboard";
       box-shadow: 0 8px 20px rgba(0,0,0,0.15);
       border: 1px solid #e0e0e0;
       z-index: 1000;
+      color: #000000;  
     }
 
     body.dark-mode .notification-dropdown {
       background: #2d2d2d;
       border-color: #6E6E6E;
+      color: #e0e0e0;
     }
 
     .notification-dropdown.show {
@@ -401,15 +368,17 @@ $pageTitle = "Student Dashboard";
       display: flex;
       justify-content: space-between;
       align-items: center;
+      color: #000000;  
     }
 
     body.dark-mode .notification-header {
       border-bottom-color: #6E6E6E;
+      color: #e0e0e0;
     }
 
     .notification-header h4 {
       margin: 0;
-      color: #732529;
+      color: #000000;
       font-size: 1rem;
       font-weight: 600;
     }
@@ -419,7 +388,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .notification-header a {
-      color: #FE4853;
+      color: #000000;
       text-decoration: none;
       font-size: 0.85rem;
       cursor: pointer;
@@ -439,10 +408,12 @@ $pageTitle = "Student Dashboard";
       border-bottom: 1px solid #f0f0f0;
       transition: background 0.2s;
       cursor: pointer;
+      color: #000000; /* Black font */
     }
 
     body.dark-mode .notification-item {
       border-bottom-color: #3a3a3a;
+      color: #e0e0e0;
     }
 
     .notification-item:hover {
@@ -459,12 +430,12 @@ $pageTitle = "Student Dashboard";
     }
 
     body.dark-mode .notification-item.unread {
-      background: #3a1a1a;
+      background: #000000;
     }
 
     .notif-message {
       font-size: 0.9rem;
-      color: #333;
+      color: #000000; /* Black font */
       margin-bottom: 5px;
       font-weight: 500;
       display: flex;
@@ -482,7 +453,7 @@ $pageTitle = "Student Dashboard";
 
     .notif-time {
       font-size: 0.75rem;
-      color: #6E6E6E;
+      color: #000000; /* Black font */
     }
 
     body.dark-mode .notif-time {
@@ -498,18 +469,24 @@ $pageTitle = "Student Dashboard";
 
     .no-notifications {
       text-align: center;
-      color: #6E6E6E;
+      color: #000000; /* Black font */
       padding: 30px 0;
+    }
+
+    body.dark-mode .no-notifications {
+      color: #e0e0e0;
     }
 
     .notification-footer {
       padding: 15px 20px;
       text-align: center;
       border-top: 1px solid #e0e0e0;
+      color: #000000; /* Black font */
     }
 
     body.dark-mode .notification-footer {
       border-top-color: #6E6E6E;
+      color: #e0e0e0;
     }
 
     .notification-footer a {
@@ -522,10 +499,7 @@ $pageTitle = "Student Dashboard";
     .notification-footer a:hover {
       text-decoration: underline;
     }
-
-    /* ====================================
-       AVATAR DROPDOWN
-    ==================================== */
+ 
     .avatar-dropdown {
       position: relative;
     }
@@ -534,7 +508,7 @@ $pageTitle = "Student Dashboard";
       width: 45px;
       height: 45px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #FE4853 0%, #732529 100%);
+      background: linear-gradient(135deg, #FE4853 0%, #000000 100%);
       color: white;
       display: flex;
       align-items: center;
@@ -566,12 +540,14 @@ $pageTitle = "Student Dashboard";
       z-index: 1000;
       overflow: hidden;
       border: 1px solid #e0e0e0;
+      color: #000000; /* Black font */
     }
 
     body.dark-mode .dropdown-content {
       background: #3a3a3a;
       border-color: #6E6E6E;
       box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+      color: #e0e0e0;
     }
 
     .dropdown-content.show {
@@ -591,7 +567,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .dropdown-content a {
-      color: #6E6E6E;
+      color: #000000; /* Black font */
       padding: 12px 16px;
       text-decoration: none;
       display: flex;
@@ -627,8 +603,7 @@ $pageTitle = "Student Dashboard";
       background: #4a4a4a;
     }
 
-    /* Three-line menu */
-    .hamburger-menu {
+     .hamburger-menu {
       font-size: 1.5rem;
       cursor: pointer;
       color: #FE4853;
@@ -655,8 +630,7 @@ $pageTitle = "Student Dashboard";
       color: #FE4853;
     }
 
-    /* Mobile menu button */
-    .mobile-menu-btn {
+     .mobile-menu-btn {
       position: fixed;
       top: 16px;
       right: 16px;
@@ -684,7 +658,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .welcome-section h2 {
-      color: #732529;
+      color: #000000;
       font-size: 2.1rem;
       margin-bottom: 0.5rem;
     }
@@ -694,7 +668,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .welcome-section p {
-      color: #6E6E6E;
+      color: #000000; /* Black font */
     }
 
     body.dark-mode .welcome-section p {
@@ -717,11 +691,13 @@ $pageTitle = "Student Dashboard";
       box-shadow: 0 3px 14px rgba(110, 110, 110, 0.1);
       text-align: center;
       transition: transform 0.18s, background 0.3s, box-shadow 0.3s;
+      color: #000000; /* Black font */
     }
 
     body.dark-mode .stat-card {
       background: #3a3a3a;
       box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      color: #e0e0e0;
     }
 
     .stat-card:hover {
@@ -742,7 +718,7 @@ $pageTitle = "Student Dashboard";
     .stat-value {
       font-size: 2rem;
       font-weight: 700;
-      color: #732529;
+      color: #000000;
     }
 
     body.dark-mode .stat-value {
@@ -750,7 +726,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .stat-label {
-      color: #6E6E6E;
+      color: #000000; /* Black font */
       font-size: 0.9rem;
       margin-top: 0.3rem;
     }
@@ -784,7 +760,7 @@ $pageTitle = "Student Dashboard";
 
     .quick-links h3 {
       margin-bottom: 1.2rem;
-      color: #6E6E6E;
+      color: #000000; /* Black font */
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -820,7 +796,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .quick-btn:hover {
-      background: #732529;
+      background: #000000;
       transform: translateY(-2px);
     }
 
@@ -829,7 +805,7 @@ $pageTitle = "Student Dashboard";
     }
 
     body.dark-mode .quick-btn:hover {
-      background: #732529;
+      background: #000000;
     }
 
     /* ====================================
@@ -841,14 +817,16 @@ $pageTitle = "Student Dashboard";
       border-radius: 12px;
       padding: 1.5rem;
       box-shadow: 0 3px 14px rgba(110, 110, 110, 0.1);
+      color: #000000; /* Black font */
     }
 
     body.dark-mode .recent-feedback {
       background: #3a3a3a;
+      color: #e0e0e0;
     }
 
     .recent-feedback h3 {
-      color: #732529;
+      color: #000000;
       margin-bottom: 1.5rem;
       display: flex;
       align-items: center;
@@ -876,6 +854,7 @@ $pageTitle = "Student Dashboard";
       border-left: 3px solid #FE4853;
       transition: transform 0.2s;
       position: relative;
+      color: #000000; /* Black font */
     }
 
     .feedback-item:hover {
@@ -884,6 +863,7 @@ $pageTitle = "Student Dashboard";
 
     body.dark-mode .feedback-item {
       background: #4a4a4a;
+      color: #e0e0e0;
     }
 
     .feedback-header {
@@ -891,11 +871,12 @@ $pageTitle = "Student Dashboard";
       justify-content: space-between;
       align-items: center;
       margin-bottom: 0.5rem;
+      color: #000000; /* Black font */
     }
 
     .feedback-thesis {
       font-weight: 600;
-      color: #732529;
+      color: #000000;
     }
 
     body.dark-mode .feedback-thesis {
@@ -904,13 +885,21 @@ $pageTitle = "Student Dashboard";
 
     .feedback-date {
       font-size: 0.8rem;
-      color: #6E6E6E;
+      color: #000000; /* Black font */
+    }
+
+    body.dark-mode .feedback-date {
+      color: #e0e0e0;
     }
 
     .feedback-from {
       font-size: 0.85rem;
-      color: #6E6E6E;
+      color: #000000; /* Black font */
       margin-bottom: 0.5rem;
+    }
+
+    body.dark-mode .feedback-from {
+      color: #e0e0e0;
     }
 
     .feedback-from i {
@@ -919,7 +908,7 @@ $pageTitle = "Student Dashboard";
     }
 
     .feedback-content {
-      color: #333;
+      color: #000000; /* Black font */
       line-height: 1.5;
     }
 
@@ -960,7 +949,7 @@ $pageTitle = "Student Dashboard";
       left: -300px;
       width: 280px;
       height: 100vh;
-      background: linear-gradient(180deg, #FE4853 0%, #732529 100%);
+      background: linear-gradient(180deg, #000000 0%, #732529 100%);
       color: white;
       display: flex;
       flex-direction: column;
@@ -1058,7 +1047,6 @@ $pageTitle = "Student Dashboard";
       color: white;
     }
 
-    /* Theme Toggle */
     .theme-toggle {
       margin-bottom: 1rem;
     }
@@ -1108,8 +1096,7 @@ $pageTitle = "Student Dashboard";
       transform: translateX(100%);
     }
 
-    /* Overlay */
-    .overlay {
+     .overlay {
       display: none;
       position: fixed;
       top: 0;

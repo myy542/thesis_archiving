@@ -2,11 +2,9 @@
 session_start();
 include("../config/db.php");
 
-// Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Check if user is logged in
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../authentication/login.php");
     exit;
@@ -14,12 +12,8 @@ if (!isset($_SESSION["user_id"])) {
 
 $user_id = (int)$_SESSION["user_id"];
 
-// DEBUG: Log the session user_id
 error_log("Faculty Dashboard - User ID from session: " . $user_id);
 
-/* ================================
-   VERIFY USER ROLE - CRITICAL FIX
-================================ */
 $roleQuery = "SELECT user_id, first_name, last_name, role_id FROM user_table WHERE user_id = ? LIMIT 1";
 $stmt = $conn->prepare($roleQuery);
 $stmt->bind_param("i", $user_id);
@@ -27,10 +21,8 @@ $stmt->execute();
 $userData = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-// DEBUG: Log what we found
 error_log("Faculty Dashboard - User data from DB: " . print_r($userData, true));
 
-// If user not found in database, destroy session
 if (!$userData) {
     error_log("Faculty Dashboard - User not found in database, destroying session");
     session_destroy();
@@ -38,13 +30,11 @@ if (!$userData) {
     exit;
 }
 
-// STRICT CHECK: Only allow role_id = 3 (faculty)
 $required_role_id = 3;
 
 if ($userData['role_id'] != $required_role_id) {
     error_log("Faculty Dashboard - Access denied. User role_id: " . $userData['role_id'] . ", Required: " . $required_role_id);
     
-    // Redirect to appropriate dashboard based on role
     if ($userData['role_id'] == 2) {
         header("Location: /ArchivingThesis/student/student_dashboard.php");
         exit;
@@ -59,9 +49,6 @@ if ($userData['role_id'] != $required_role_id) {
 
 $faculty_id = $user_id;
 
-/* ================================
-   FETCH FACULTY INFORMATION
-================================ */
 $stmt = $conn->prepare("SELECT user_id, first_name, last_name, email, role_id FROM user_table WHERE user_id = ? LIMIT 1");
 $stmt->bind_param("i", $faculty_id);
 $stmt->execute();
@@ -80,17 +67,12 @@ $last  = trim($faculty["last_name"] ?? "");
 $fullName = trim($first . " " . $last);
 $initials = $first && $last ? strtoupper(substr($first, 0, 1) . substr($last, 0, 1)) : "FA";
 
-// DEBUG: Log successful faculty access
 error_log("Faculty Dashboard - Access granted for: " . $fullName . " (ID: " . $faculty_id . ")");
 
-/* ================================
-   GET NOTIFICATIONS - UPDATED VERSION
-================================ */
 $unreadCount = 0;
 $recentNotifications = [];
 
 try {
-    // Get unread count
     $countQuery = "SELECT COUNT(*) as total FROM notification_table 
                    WHERE user_id = ? AND status = 'unread'";
     $stmt = $conn->prepare($countQuery);
@@ -99,8 +81,6 @@ try {
     $countResult = $stmt->get_result()->fetch_assoc();
     $unreadCount = $countResult['total'] ?? 0;
     $stmt->close();
-    
-    // Get recent notifications with thesis and student details
     $notifQuery = "SELECT 
                     n.notification_id as id, 
                     n.message,
@@ -123,7 +103,6 @@ try {
     $notifResult = $stmt->get_result();
     
     while ($row = $notifResult->fetch_assoc()) {
-        // Convert status to is_read format (1 = read, 0 = unread)
         $row['is_read'] = ($row['status'] == 'unread') ? 0 : 1;
         $recentNotifications[] = $row;
     }
@@ -133,9 +112,6 @@ try {
     error_log("Faculty Dashboard - Notification error: " . $e->getMessage());
 }
 
-/* ================================
-   GET PENDING THESES FOR REVIEW
-================================ */
 $pendingTheses = [];
 
 try {
@@ -158,12 +134,8 @@ try {
     error_log("Faculty Dashboard - Thesis query error: " . $e->getMessage());
 }
 
-/* ================================
-   GET STATISTICS
-================================ */
 $pendingCount = count($pendingTheses);
 
-// Count approved theses
 $approvedCount = 0;
 try {
     $approvedQuery = "SELECT COUNT(*) as total FROM thesis_table WHERE status = 'approved'";
@@ -175,7 +147,6 @@ try {
     error_log("Faculty Dashboard - Approved count error: " . $e->getMessage());
 }
 
-// Count rejected theses
 $rejectedCount = 0;
 try {
     $rejectedQuery = "SELECT COUNT(*) as total FROM thesis_table WHERE status = 'rejected'";
@@ -198,7 +169,7 @@ $pageTitle = "Faculty Dashboard";
     <title><?= htmlspecialchars($pageTitle) ?> - Theses Archiving System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        /* Keep all your existing CSS exactly as is */
+     
         * {
             margin: 0;
             padding: 0;
@@ -220,7 +191,6 @@ $pageTitle = "Faculty Dashboard";
             position: relative;
         }
 
-        /* Sidebar */
         .sidebar {
             position: fixed;
             top: 0;
@@ -402,7 +372,7 @@ $pageTitle = "Faculty Dashboard";
 
         .topbar h1 {
             font-size: 1.875rem;
-            color: #732529;
+            color: #000000;
         }
 
         body.dark-mode .topbar h1 {
@@ -574,13 +544,13 @@ $pageTitle = "Faculty Dashboard";
 
         .notification-header h4 {
             margin: 0;
-            color: #732529;
+            color: #000000;
             font-size: 1rem;
             font-weight: 600;
         }
 
         .notification-header a {
-            color: #FE4853;
+            color: #000000;
             text-decoration: none;
             font-size: 0.85rem;
             cursor: pointer;
@@ -635,8 +605,7 @@ $pageTitle = "Faculty Dashboard";
             font-size: 0.9rem;
             font-weight: 500;
         }
-
-        /* Welcome Banner */
+ 
         .welcome-banner {
             background: linear-gradient(135deg, #FE4853 0%, #732529 100%);
             color: white;
@@ -657,8 +626,7 @@ $pageTitle = "Faculty Dashboard";
             opacity: 0.9;
             font-size: 1rem;
         }
-
-        /* Stats Cards */
+ 
         .stats-overview {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -693,7 +661,7 @@ $pageTitle = "Faculty Dashboard";
         .stat-value {
             font-size: 2.4rem;
             font-weight: 700;
-            color: #732529;
+            color: #000000;
             line-height: 1.2;
             margin-bottom: 0.3rem;
         }
@@ -703,8 +671,7 @@ $pageTitle = "Faculty Dashboard";
             font-size: 0.95rem;
             font-weight: 500;
         }
-
-        /* Pending Theses */
+ 
         .pending-theses {
             background: white;
             border-radius: 12px;
@@ -714,7 +681,7 @@ $pageTitle = "Faculty Dashboard";
         }
 
         .pending-theses h3 {
-            color: #732529;
+            color: #000000;
             margin: 0 0 1.5rem 0;
             display: flex;
             align-items: center;
@@ -775,7 +742,7 @@ $pageTitle = "Faculty Dashboard";
         }
 
         .btn-review:hover {
-            background: #732529;
+            background: #000000;
         }
         .recent-activity {
             background: white;
@@ -784,7 +751,7 @@ $pageTitle = "Faculty Dashboard";
             box-shadow: 0 3px 14px rgba(110, 110, 110, 0.1);
         }
         .recent-activity h3 {
-            color: #732529;
+            color: #000000;
             margin: 0 0 1.5rem 0;
             display: flex;
             align-items: center;
@@ -923,7 +890,6 @@ $pageTitle = "Faculty Dashboard";
     </style>
 </head>
 <body>
-<!-- Your existing HTML remains exactly the same -->
 <div class="overlay" id="overlay"></div>
 <button class="mobile-menu-btn" id="mobileMenuBtn">
     <i class="fas fa-bars"></i>
@@ -1038,7 +1004,6 @@ $pageTitle = "Faculty Dashboard";
             </div>
         </header>
 
-        <!-- Debug Info (remove in production) -->
         <?php if (isset($_GET['debug'])): ?>
         <div style="background: #f8d7da; color: #721c24; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
             <strong>Debug Info:</strong><br>
@@ -1051,7 +1016,7 @@ $pageTitle = "Faculty Dashboard";
         <?php endif; ?>
 
         <div class="welcome-banner">
-            <h2>Welcome back, <?= htmlspecialchars($fullName) ?>!</h2>
+            <h2>Welcome, <?= htmlspecialchars($fullName) ?>!</h2>
             <p>Here's an overview of your advising and review activities.</p>
         </div>
 
@@ -1129,8 +1094,7 @@ $pageTitle = "Faculty Dashboard";
 </div>
 
 <script>
-    // Dark mode toggle
-    const toggle = document.getElementById('darkmode');
+   const toggle = document.getElementById('darkmode');
     if (toggle) {
         toggle.addEventListener('change', () => {
             document.body.classList.toggle('dark-mode');
@@ -1141,8 +1105,6 @@ $pageTitle = "Faculty Dashboard";
             document.body.classList.add('dark-mode');
         }
     }
-    
-    // Avatar dropdown
     const avatarBtn = document.getElementById('avatarBtn');
     const dropdownMenu = document.getElementById('dropdownMenu');
     const notificationBell = document.getElementById('notificationBell');
@@ -1180,8 +1142,7 @@ $pageTitle = "Faculty Dashboard";
             e.stopPropagation();
         });
     }
-
-    // Mark all as read
+ 
     document.getElementById('markAllRead')?.addEventListener('click', function(e) {
         e.preventDefault();
         
@@ -1251,8 +1212,7 @@ $pageTitle = "Faculty Dashboard";
         })
         .catch(error => console.error('Error:', error));
     }
-
-    // Sidebar toggle
+ 
     const mobileBtn = document.getElementById('mobileMenuBtn');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');

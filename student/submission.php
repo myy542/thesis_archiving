@@ -1217,9 +1217,6 @@ try {
       color: #94a3b8;
     }
 
-    /* ====================================
-       MOBILE MENU BUTTON
-    ==================================== */
     .mobile-menu-btn {
       position: fixed;
       top: 16px;
@@ -1241,9 +1238,6 @@ try {
       background: #732529;
     }
 
-    /* ====================================
-       ANIMATIONS
-    ==================================== */
     @keyframes slideDown {
       from {
         opacity: 0;
@@ -1281,9 +1275,6 @@ try {
       animation: spin 1s linear infinite;
     }
 
-    /* ====================================
-       RESPONSIVE DESIGN
-    ==================================== */
     @media (max-width: 768px) {
       .sidebar {
         transform: translateX(-100%);
@@ -1414,10 +1405,7 @@ try {
         font-size: 0.9rem;
       }
     }
-
-    /* ====================================
-       PRINT STYLES
-    ==================================== */
+ 
     @media print {
       .submission-card {
         box-shadow: none;
@@ -1439,16 +1427,13 @@ try {
 </head>
 <body>
 
-<!-- OVERLAY -->
-<div class="overlay" id="overlay"></div>
+ <div class="overlay" id="overlay"></div>
 
-<!-- MOBILE MENU BUTTON -->
-<button class="mobile-menu-btn" id="mobileMenuBtn">
+ <button class="mobile-menu-btn" id="mobileMenuBtn">
     <i class="fas fa-bars"></i>
 </button>
 
-<!-- SIDEBAR - RED BACKGROUND -->
-<aside class="sidebar" id="sidebar">
+ <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <h2>Theses Archive</h2>
     <p>Student Portal</p>
@@ -1492,16 +1477,14 @@ try {
 
     <header class="topbar">
       <div style="display: flex; align-items: center; gap: 1rem;">
-        <!-- Three-line menu -->
-        <div class="hamburger-menu" id="hamburgerBtn">
+         <div class="hamburger-menu" id="hamburgerBtn">
           <i class="fas fa-bars"></i>
         </div>
         <h1>Thesis Submission</h1>
       </div>
 
       <div class="user-info">
-        <!-- Notification Bell -->
-        <div class="notification-container">
+         <div class="notification-container">
           <a href="notification.php" class="notification-bell" id="notificationBell">
             <i class="fas fa-bell"></i>
             <?php if ($notificationCount > 0): ?>
@@ -1510,8 +1493,7 @@ try {
           </a>
         </div>
         
-        <!-- Avatar Container -->
-        <div class="avatar-container">
+         <div class="avatar-container">
           <div class="avatar-dropdown">
             <div class="avatar" id="avatarBtn">
               <?= htmlspecialchars($initials) ?>

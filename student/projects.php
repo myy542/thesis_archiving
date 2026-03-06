@@ -2,8 +2,7 @@
 session_start();
 include("../config/db.php");
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
+ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 if (!isset($_SESSION["user_id"])) {
@@ -13,7 +12,7 @@ if (!isset($_SESSION["user_id"])) {
 
 $user_id = (int)$_SESSION["user_id"];
 
-// Verify user role (student only)
+
 $roleQuery = "SELECT role_id FROM user_table WHERE user_id = ? LIMIT 1";
 $stmt = $conn->prepare($roleQuery);
 $stmt->bind_param("i", $user_id);
@@ -26,8 +25,7 @@ if (!$userData || $userData['role_id'] != 2) {
     exit;
 }
 
-// Get user info for display
-$stmt = $conn->prepare("SELECT first_name, last_name FROM user_table WHERE user_id = ? LIMIT 1");
+ $stmt = $conn->prepare("SELECT first_name, last_name FROM user_table WHERE user_id = ? LIMIT 1");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -36,8 +34,7 @@ $stmt->close();
 $fullName = trim($user["first_name"] . " " . $user["last_name"]);
 $initials = strtoupper(substr($user["first_name"], 0, 1) . substr($user["last_name"], 0, 1));
 
-// Get student_id from student_table
-$student_id = $user_id;
+ $student_id = $user_id;
 $studentQuery = "SELECT student_id FROM student_table WHERE user_id = ? LIMIT 1";
 $stmt = $conn->prepare($studentQuery);
 $stmt->bind_param("i", $user_id);
@@ -49,10 +46,7 @@ $stmt->close();
 if ($studentData) {
     $student_id = $studentData['student_id'];
 }
-
-/* ================================
-   GET ALL THESIS PROJECTS FOR THIS STUDENT
-================================ */
+ 
 $projects = [];
 
 try {
@@ -86,8 +80,7 @@ try {
     error_log("Projects fetch error: " . $e->getMessage());
 }
 
-// Calculate progress based on status and feedback count
-function calculateProgress($status, $feedback_count) {
+ function calculateProgress($status, $feedback_count) {
     switch($status) {
         case 'approved':
             return 100;
@@ -97,14 +90,12 @@ function calculateProgress($status, $feedback_count) {
             return 100;
         case 'pending':
         default:
-            // Base 30% + 15% per feedback (max 85%)
-            $progress = 30 + min($feedback_count * 15, 55);
+             $progress = 30 + min($feedback_count * 15, 55);
             return min($progress, 85);
     }
 }
 
-// Get status badge class
-function getStatusClass($status) {
+ function getStatusClass($status) {
     switch($status) {
         case 'approved':
             return 'status-approved';
@@ -118,8 +109,7 @@ function getStatusClass($status) {
     }
 }
 
-// Get status display text
-function getStatusText($status) {
+ function getStatusText($status) {
     switch($status) {
         case 'approved':
             return 'Approved';
@@ -145,8 +135,7 @@ $pageTitle = "My Projects";
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* Base styles */
-    * {
+     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
@@ -167,14 +156,12 @@ $pageTitle = "My Projects";
       position: relative;
     }
 
-    /* Main Content */
     .main-content {
       padding: 2rem;
       max-width: 1400px;
       margin: 0 auto;
     }
 
-    /* Topbar */
     .topbar {
       display: flex;
       justify-content: space-between;

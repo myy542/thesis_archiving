@@ -626,7 +626,7 @@ $pageTitle = "Faculty Profile";
         }
 
         .notification-footer a {
-            color: #FE4853;
+            color: #7f1c23;
             text-decoration: none;
             font-size: 0.9rem;
             font-weight: 500;
@@ -1359,16 +1359,14 @@ $pageTitle = "Faculty Profile";
 
         <header class="topbar">
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <!-- Three-line menu -->
-                <div class="hamburger-menu" id="hamburgerBtn">
+                 <div class="hamburger-menu" id="hamburgerBtn">
                     <i class="fas fa-bars"></i>
                 </div>
                 <h1><?= htmlspecialchars($pageTitle) ?></h1>
             </div>
 
             <div class="user-info">
-                <!-- Notification Container with Dropdown -->
-                <div class="notification-container">
+                 <div class="notification-container">
                     <div class="notification-bell" id="notificationBell">
                         <i class="fas fa-bell"></i>
                         <?php if ($unreadCount > 0): ?>
@@ -1376,8 +1374,7 @@ $pageTitle = "Faculty Profile";
                         <?php endif; ?>
                     </div>
                     
-                    <!-- Notification Dropdown -->
-                    <div class="notification-dropdown" id="notificationDropdown">
+                     <div class="notification-dropdown" id="notificationDropdown">
                         <div class="notification-header">
                             <h4>Notifications</h4>
                             <a href="#" id="markAllRead">Mark all as read</a>
@@ -1402,8 +1399,7 @@ $pageTitle = "Faculty Profile";
                     </div>
                 </div>
 
-                <!-- Avatar Dropdown -->
-                <div class="avatar-dropdown">
+                 <div class="avatar-dropdown">
                     <div class="avatar" id="avatarBtn">
                         <?= htmlspecialchars($initials) ?>
                     </div>
@@ -1417,8 +1413,7 @@ $pageTitle = "Faculty Profile";
             </div>
         </header>
 
-        <!-- Profile Content -->
-        <div class="profile-container">
+         <div class="profile-container">
             <div class="profile-header">
                 <?php if ($profilePicUrl && file_exists(__DIR__ . "/../uploads/profile_pictures/" . $profile_picture)): ?>
                     <img class="profile-avatar-large" src="<?= htmlspecialchars($profilePicUrl) ?>?v=<?= time() ?>" alt="Profile Picture" style="object-fit: cover;">
@@ -1432,8 +1427,7 @@ $pageTitle = "Faculty Profile";
             </div>
 
             <div class="profile-card">
-                <!-- Quick Stats -->
-                <div class="stats-grid-small">
+                 <div class="stats-grid-small">
                     <div class="stat-card-small">
                         <div class="value"><?= $pendingCount ?></div>
                         <div class="label">Pending</div>
