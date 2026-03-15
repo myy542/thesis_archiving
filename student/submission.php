@@ -11,7 +11,7 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
-$archive = new ArchiveManager($conn);
+$archiveManager = new ArchiveManager($conn);
 $user_id = (int)$_SESSION["user_id"];
 
 error_log("=== STUDENT ID DEBUG ===");
@@ -144,74 +144,112 @@ if (!file_exists($uploadDir)) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if($metadata->validateMetadata($_POST)) {
-        $title       = trim($_POST["title"] ?? "");
-        $abstract    = trim($_POST["abstract"] ?? "");
-        $adviser     = trim($_POST["adviser"] ?? "");
-        $keywords    = trim($_POST["keywords"] ?? "");
-        $department  = trim($_POST["department"] ?? "");
-        $course      = trim($_POST["course"] ?? "");
-        $year        = trim($_POST["year"] ?? "");
+    $title       = trim($_POST["title"] ?? "");
+    $abstract    = trim($_POST["abstract"] ?? "");
+    $adviser     = trim($_POST["adviser"] ?? "");
+    $keywords    = trim($_POST["keywords"] ?? "");
+    $department  = trim($_POST["department"] ?? "");
+    $year        = trim($_POST["year"] ?? "");
 
-        if (empty($_FILES["manuscript"]["name"])) {
-            $formErrors[] = "Please upload the manuscript (PDF).";
-        } else {
-            $file = $_FILES["manuscript"];
-            $fileName = $file["name"];
-            $fileTmp = $file["tmp_name"];
-            $fileSize = $file["size"];
-            $fileError = $file["error"];
-            
-            $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-            
-            if ($ext !== "pdf") {
-                $formErrors[] = "Only PDF files are allowed.";
-            }
-            
-            $maxFileSize = 10 * 1024 * 1024; 
-            if ($fileSize > $maxFileSize) {
-                $formErrors[] = "File size must not exceed 10MB.";
-            }
-            
-            if ($fileError !== 0) {
-                $formErrors[] = "Error uploading file. Please try again.";
-            }
-            
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($finfo, $fileTmp);
-            finfo_close($finfo);
-            
-            if ($mimeType !== 'application/pdf') {
-                $formErrors[] = "The file must be a valid PDF document.";
-            }
+    // Manual validation
+    if (empty($title)) $formErrors[] = "Thesis title is required.";
+    if (strlen($title) < 5) $formErrors[] = "Title must be at least 5 characters long.";
+    if (strlen($title) > 255) $formErrors[] = "Title must not exceed 255 characters.";
+    
+    if (empty($abstract)) $formErrors[] = "Abstract is required.";
+    if (strlen($abstract) < 50) $formErrors[] = "Abstract must be at least 50 characters long.";
+    if (strlen($abstract) > 5000) $formErrors[] = "Abstract must not exceed 5000 characters.";
+    
+    if (empty($adviser)) $formErrors[] = "Adviser name is required.";
+    if (empty($keywords)) $formErrors[] = "Keywords are required.";
+    
+    $keywordArray = array_map('trim', explode(',', $keywords));
+    if (count($keywordArray) < 3) $formErrors[] = "Please provide at least 3 keywords.";
+    
+    if (empty($department)) $formErrors[] = "Department is required.";
+    if (empty($year)) $formErrors[] = "Year is required.";
+
+    if (empty($_FILES["manuscript"]["name"])) {
+        $formErrors[] = "Please upload the manuscript (PDF).";
+    } else {
+        $file = $_FILES["manuscript"];
+        $fileName = $file["name"];
+        $fileTmp = $file["tmp_name"];
+        $fileSize = $file["size"];
+        $fileError = $file["error"];
+        
+        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        
+        if ($ext !== "pdf") {
+            $formErrors[] = "Only PDF files are allowed.";
         }
+        
+        $maxFileSize = 10 * 1024 * 1024; 
+        if ($fileSize > $maxFileSize) {
+            $formErrors[] = "File size must not exceed 10MB.";
+        }
+        
+        if ($fileError !== 0) {
+            $formErrors[] = "Error uploading file. Please try again.";
+        }
+        
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $fileTmp);
+        finfo_close($finfo);
+        
+        if ($mimeType !== 'application/pdf') {
+            $formErrors[] = "The file must be a valid PDF document.";
+        }
+    }
 
-        if (empty($formErrors)) {
-            $timestamp = time();
-            $uniqueId = uniqid();
-            $safeTitle = preg_replace('/[^a-zA-Z0-9]/', '_', $title);
-            $safeTitle = substr($safeTitle, 0, 50);
-            $newFileName = $timestamp . '_' . $uniqueId . '_' . $safeTitle . '.pdf';
-            $uploadPath = $uploadDir . $newFileName;
+    if (empty($formErrors)) {
+        $timestamp = time();
+        $uniqueId = uniqid();
+        $safeTitle = preg_replace('/[^a-zA-Z0-9]/', '_', $title);
+        $safeTitle = substr($safeTitle, 0, 50);
+        $newFileName = $timestamp . '_' . $uniqueId . '_' . $safeTitle . '.pdf';
+        $uploadPath = $uploadDir . $newFileName;
+        
+        if (move_uploaded_file($fileTmp, $uploadPath)) {
+            chmod($uploadPath, 0644);
             
-            if (move_uploaded_file($fileTmp, $uploadPath)) {
-                chmod($uploadPath, 0644);
+            $dbFilePath = 'uploads/manuscripts/' . $newFileName;
+            
+            error_log("=== THESIS INSERT DEBUG ===");
+            error_log("Student ID: " . $student_id);
+            error_log("Title: " . $title);
+          
+            if (empty($student_id) || $student_id <= 0) {
+                error_log("WARNING: Invalid student_id, using user_id");
+                $student_id = $user_id;
+            }
+            
+            $sql = "INSERT INTO thesis_table (
+                student_id, title, abstract, keywords, department, year, adviser, status, file_path, date_submitted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $status = 'pending';
+                $date_submitted = date('Y-m-d H:i:s');
                 
-                $dbFilePath = 'uploads/manuscripts/' . $newFileName;
+                $stmt->bind_param(
+                    "isssssssss", 
+                    $student_id, 
+                    $title, 
+                    $abstract, 
+                    $keywords,
+                    $department,
+                    $year,
+                    $adviser, 
+                    $status, 
+                    $dbFilePath, 
+                    $date_submitted
+                );
                 
-                error_log("=== THESIS INSERT DEBUG ===");
-                error_log("Student ID: " . $student_id);
-                error_log("Title: " . $title);
-              
-                if (empty($student_id) || $student_id <= 0) {
-                    error_log("WARNING: Invalid student_id, using user_id");
-                    $student_id = $user_id;
-                }
-                
-                $thesis_id = $metadata->storeThesis($student_id, $_POST, $dbFilePath);
-                
-                if ($thesis_id) {
-                    error_log("Thesis inserted successfully with ID: " . $thesis_id);
+                if ($stmt->execute()) {
+                    $thesisId = $stmt->insert_id;
+                    error_log("Thesis inserted successfully with ID: " . $thesisId);
                     error_log("File saved at: " . $dbFilePath);
 
                     try {
@@ -233,11 +271,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 $notifSql = "INSERT INTO notification_table (user_id, thesis_id, message, status, created_at) 
                                             VALUES (?, ?, ?, 'unread', NOW())";
                                 $notifStmt = $conn->prepare($notifSql);
-                                $notifStmt->bind_param("iis", $facultyId, $thesis_id, $message);
+                                $notifStmt->bind_param("iis", $facultyId, $thesisId, $message);
                                 
                                 if ($notifStmt->execute()) {
                                     $notificationsInserted++;
-                                    error_log("Notification sent to faculty: $facultyId for thesis ID: $thesis_id");
+                                    error_log("Notification sent to faculty: $facultyId for thesis ID: $thesisId");
                                 } else {
                                     error_log("Error sending to faculty $facultyId: " . $notifStmt->error);
                                 }
@@ -264,16 +302,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $_POST = [];
                     
                 } else {
-                    $formErrors = array_merge($formErrors, $metadata->getErrors());
-                    error_log("Failed to insert thesis: " . implode(", ", $metadata->getErrors()));
+                    $formErrors[] = "Database error: Failed to save thesis information.";
+                    error_log("SQL Error: " . $stmt->error);
                 }
+                $stmt->close();
             } else {
-                $formErrors[] = "Failed to upload file. Please check directory permissions.";
-                error_log("Upload Error: Failed to move file to " . $uploadPath);
+                $formErrors[] = "System error: Failed to prepare query.";
+                error_log("Prepare Error: " . $conn->error);
             }
+            error_log("=== END THESIS INSERT DEBUG ===");
+        } else {
+            $formErrors[] = "Failed to upload file. Please check directory permissions.";
+            error_log("Upload Error: Failed to move file to " . $uploadPath);
         }
-    } else {
-        $formErrors = array_merge($formErrors, $metadata->getErrors());
     }
 }
 
@@ -1503,15 +1544,6 @@ try {
                 <option value="ENG" <?= (isset($_POST['department']) && $_POST['department'] == 'ENG') ? 'selected' : '' ?>>Engineering</option>
                 <option value="BUS" <?= (isset($_POST['department']) && $_POST['department'] == 'BUS') ? 'selected' : '' ?>>Business</option>
             </select>
-          </div>
-
-          <div class="form-group">
-            <label for="course">
-              <i class="fas fa-graduation-cap"></i> Course <span class="required">*</span>
-            </label>
-            <input type="text" id="course" name="course" required
-                   value="<?= htmlspecialchars($_POST['course'] ?? '') ?>"
-                   placeholder="e.g., BS Computer Science">
           </div>
 
           <div class="form-group">

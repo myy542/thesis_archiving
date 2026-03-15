@@ -33,6 +33,7 @@ $stmt->close();
 $fullName = trim($user["first_name"] . " " . $user["last_name"]);
 $initials = strtoupper(substr($user["first_name"], 0, 1) . substr($user["last_name"], 0, 1));
 
+// Get the correct student_id from student_table
 $student_id = $user_id;
 $studentQuery = "SELECT student_id FROM student_table WHERE user_id = ? LIMIT 1";
 $stmt = $conn->prepare($studentQuery);
@@ -49,21 +50,14 @@ if ($studentData) {
 $projects = [];
 
 try {
+    // =============== SIMPLE WORKING QUERY (based on debug) ===============
     $query = "SELECT t.*, 
-                     u.first_name as faculty_first, u.last_name as faculty_last,
+                     COALESCE(CONCAT(u.first_name, ' ', u.last_name), 'Not Assigned') as adviser_name,
                      (SELECT COUNT(*) FROM feedback_table WHERE thesis_id = t.thesis_id) as feedback_count
               FROM thesis_table t
               LEFT JOIN user_table u ON t.adviser_id = u.user_id
               WHERE t.student_id = ?
-              ORDER BY 
-                  CASE t.status
-                      WHEN 'pending' THEN 1
-                      WHEN 'approved' THEN 2
-                      WHEN 'rejected' THEN 3
-                      WHEN 'archived' THEN 4
-                      ELSE 5
-                  END,
-                  t.date_submitted DESC";
+              ORDER BY t.date_submitted DESC";
     
     $stmt = $conn->prepare($query);
     $stmt->bind_param("i", $student_id);
@@ -75,28 +69,33 @@ try {
     }
     $stmt->close();
     
+    // Debug log (optional - remove later)
+    error_log("Projects found: " . count($projects));
+    
 } catch (Exception $e) {
     error_log("Projects fetch error: " . $e->getMessage());
 }
 
-// =============== GET CERTIFICATES FOR APPROVED THESES ===============
+// =============== GET CERTIFICATES FROM certificates_table ===============
 $certificates = [];
 if (!empty($projects)) {
     $thesisIds = array_column($projects, 'thesis_id');
-    $placeholders = implode(',', array_fill(0, count($thesisIds), '?'));
-    
-    $certQuery = "SELECT thesis_id, certificate_id, certificate_file, downloaded_count 
-                  FROM certificates 
-                  WHERE thesis_id IN ($placeholders)";
-    $stmt = $conn->prepare($certQuery);
-    $stmt->bind_param(str_repeat('i', count($thesisIds)), ...$thesisIds);
-    $stmt->execute();
-    $certResult = $stmt->get_result();
-    
-    while ($row = $certResult->fetch_assoc()) {
-        $certificates[$row['thesis_id']] = $row;
+    if (!empty($thesisIds)) {
+        $placeholders = implode(',', array_fill(0, count($thesisIds), '?'));
+        
+        $certQuery = "SELECT thesis_id, certificate_id, certificate_file, downloaded_count 
+                      FROM certificates_table 
+                      WHERE thesis_id IN ($placeholders)";
+        $stmt = $conn->prepare($certQuery);
+        $stmt->bind_param(str_repeat('i', count($thesisIds)), ...$thesisIds);
+        $stmt->execute();
+        $certResult = $stmt->get_result();
+        
+        while ($row = $certResult->fetch_assoc()) {
+            $certificates[$row['thesis_id']] = $row;
+        }
+        $stmt->close();
     }
-    $stmt->close();
 }
 
 function calculateProgress($status, $feedback_count) {
@@ -411,7 +410,8 @@ $pageTitle = "My Projects";
       border-radius: 12px;
       padding: 1.8rem 2rem;
       box-shadow: 0 3px 14px rgba(0,0,0,0.07);
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.5s ease;
+      scroll-margin-top: 100px;
     }
 
     body.dark-mode .project-card {
@@ -422,6 +422,16 @@ $pageTitle = "My Projects";
     .project-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+    }
+
+    .project-card.highlight {
+      background-color: #fff3cd;
+      border-left: 4px solid #FE4853;
+    }
+
+    body.dark-mode .project-card.highlight {
+      background-color: #4a3a2a;
+      border-left-color: #FE4853;
     }
 
     .project-header {
@@ -526,7 +536,6 @@ $pageTitle = "My Projects";
       text-align: right;
     }
 
-    /* =============== PROJECT META WITH METADATA FIELDS (NO DEFENSE DATE) =============== */
     .project-meta {
       display: flex;
       flex-direction: column;
@@ -596,7 +605,6 @@ $pageTitle = "My Projects";
       transform: translateY(-2px);
     }
 
-    /* =============== CERTIFICATE BUTTON STYLES =============== */
     .btn-certificate {
       background: #f59e0b;
       color: white;
@@ -644,10 +652,12 @@ $pageTitle = "My Projects";
 
     .no-projects {
       text-align: center;
-      padding: 4rem;
+      padding: 4rem 2rem;
       background: white;
       border-radius: 12px;
       color: #6E6E6E;
+      max-width: 600px;
+      margin: 2rem auto;
     }
 
     body.dark-mode .no-projects {
@@ -664,10 +674,17 @@ $pageTitle = "My Projects";
     .no-projects h3 {
       color: #732529;
       margin-bottom: 0.5rem;
+      font-size: 1.5rem;
     }
 
     body.dark-mode .no-projects h3 {
       color: #FE4853;
+    }
+
+    .no-projects p {
+      color: #6E6E6E;
+      margin-bottom: 1.5rem;
+      font-size: 1rem;
     }
 
     .feedback-badge {
@@ -680,6 +697,22 @@ $pageTitle = "My Projects";
       border-radius: 20px;
       font-size: 0.7rem;
       margin-left: 0.5rem;
+    }
+
+    /* Scroll to project styling */
+    .project-card {
+      scroll-margin-top: 100px;
+    }
+
+    .project-card.highlight {
+      background-color: #fff3cd;
+      border-left: 4px solid #FE4853;
+      transition: background-color 0.5s ease;
+    }
+
+    body.dark-mode .project-card.highlight {
+      background-color: #4a3a2a;
+      border-left-color: #FE4853;
     }
 
     /* Responsive */
@@ -751,6 +784,18 @@ $pageTitle = "My Projects";
 
       .user-name {
         font-size: 0.9rem;
+      }
+
+      .no-projects {
+        padding: 3rem 1rem;
+      }
+      
+      .no-projects i {
+        font-size: 3rem;
+      }
+      
+      .no-projects h3 {
+        font-size: 1.3rem;
       }
     }
   </style>
@@ -831,8 +876,10 @@ $pageTitle = "My Projects";
           $statusClass = getStatusClass($project['status']);
           $statusText = getStatusText($project['status']);
           $hasCertificate = isset($certificates[$project['thesis_id']]);
+          $adviserName = !empty($project['adviser_name']) ? $project['adviser_name'] : 'Not Assigned';
         ?>
-          <div class="project-card">
+          <!-- Project card with unique ID -->
+          <div class="project-card" id="project-<?= $project['thesis_id'] ?>">
             <div class="project-header">
               <h2>
                 <?= htmlspecialchars($project['title']) ?>
@@ -860,9 +907,8 @@ $pageTitle = "My Projects";
               </div>
             </div>
 
-            <!-- =============== PROJECT META - WALANG DEFENSE DATE =============== -->
             <div class="project-meta">
-                <div><i class="fas fa-user-tie"></i> <strong>Adviser:</strong> <?= htmlspecialchars($project['adviser'] ?? 'Not Assigned') ?></div>
+                <div><i class="fas fa-user-tie"></i> <strong>Adviser:</strong> <?= htmlspecialchars($adviserName) ?></div>
                 <div><i class="fas fa-tags"></i> <strong>Keywords:</strong> <?= htmlspecialchars($project['keywords'] ?? 'None') ?></div>
                 <div><i class="fas fa-building"></i> <strong>Department:</strong> <?= htmlspecialchars($project['department'] ?? 'N/A') ?></div>
                 <div><i class="fas fa-graduation-cap"></i> <strong>Course:</strong> <?= htmlspecialchars($project['course'] ?? 'N/A') ?></div>
@@ -917,7 +963,33 @@ $pageTitle = "My Projects";
   </main>
 </div>
 
+<!-- JavaScript for scroll to specific project -->
 <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check if there's a thesis_id in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const thesisId = urlParams.get('thesis_id');
+    
+    // If thesis_id exists, scroll to that project
+    if (thesisId) {
+      const projectCard = document.getElementById('project-' + thesisId);
+      
+      if (projectCard) {
+        // Scroll to the project smoothly
+        projectCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add highlight class
+        projectCard.classList.add('highlight');
+        
+        // Remove highlight after 2 seconds
+        setTimeout(() => {
+          projectCard.classList.remove('highlight');
+        }, 2000);
+      }
+    }
+  });
+
+  // Mobile menu toggle
   const mobileBtn = document.getElementById('mobileMenuBtn');
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('overlay');

@@ -444,8 +444,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <option value="" disabled selected>Select role</option>
                         <option value="1">Admin</option>
                         <option value="2">Student</option>
-                        <option value="3">Faculty</option>
-                        <option value="4">Dean</option>
+                        <option value="3">Researcher Adviser</option>
+                        <option value="4">Researcher Coordinator</option>
+                        <option value="5">Department Dean</option>
                     </select>
                 </div>
 
